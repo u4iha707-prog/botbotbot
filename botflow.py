@@ -1,128 +1,131 @@
-import asyncio
 import os
+import asyncio
+from aiohttp import web
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.filters import Command
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
+# ================= НАСТРОЙКИ =================
 TOKEN = os.getenv("TOKEN")
-ADMIN_ID = 5585690159
+ADMIN_ID = 5585690159  # <-- твой ID
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-user_data = {}
-
-# Кнопки
+# ================= КЛАВИАТУРА =================
 kb = ReplyKeyboardMarkup(
     keyboard=[
         [KeyboardButton(text="🚀 Получить клиентов")],
         [KeyboardButton(text="💼 Возможности")],
         [KeyboardButton(text="💰 Стоимость")],
         [KeyboardButton(text="📩 Связаться")],
-        [KeyboardButton(text="🔥 Оставить заявку")]
+        [KeyboardButton(text="📝 Оставить заявку")]
     ],
     resize_keyboard=True
 )
 
-# Старт
+user_data = {}
+
+# ================= СТАРТ =================
 @dp.message(Command("start"))
 async def start(message: types.Message):
     await message.answer(
         "👋 Привет!\n\n"
-        "🚀 Хочешь получать клиентов через Telegram автоматически?\n\n"
-        "🤖 Я создаю ботов, которые:\n"
-        "— принимают заявки 24/7\n"
-        "— увеличивают продажи\n"
-        "— экономят время\n\n"
-        "👇 Выбери ниже или оставь заявку",
+        "Помогаю привлекать клиентов через Telegram-ботов 💰\n\n"
+        "👇 Выбери, что интересно:",
         reply_markup=kb
     )
 
-# Основная логика
+# ================= ОСНОВНАЯ ЛОГИКА =================
 @dp.message()
 async def menu(message: types.Message):
     user_id = message.from_user.id
 
     if message.text == "🚀 Получить клиентов":
         await message.answer(
-            "🔥 Представь:\n\n"
-            "Клиенты сами пишут тебе\n"
-            "Бот отвечает за тебя\n"
-            "Ты просто получаешь заявки 💰\n\n"
-            "👇 Хочешь так же? Нажми «Оставить заявку»"
+            "📈 Как это работает:\n\n"
+            "Ты получаешь заявки прямо в Telegram\n"
+            "Клиенты пишут → бот обрабатывает → ты закрываешь сделки\n\n"
+            "💰 Больше клиентов без лишней рутины"
         )
 
     elif message.text == "💼 Возможности":
         await message.answer(
-            "🤖 Возможности бота:\n\n"
-            "— Приём заявок 24/7\n"
-            "— Автоответы клиентам\n"
-            "— Запись и обработка заявок\n"
-            "— Продажи через Telegram\n\n"
-            "🚀 Всё работает автоматически"
+            "💼 Что можно сделать:\n\n"
+            "— Приём заявок\n"
+            "— Автоответы\n"
+            "— Запись клиентов\n"
+            "— Продажи через бота\n\n"
+            "📊 Подходит для любого бизнеса"
         )
 
     elif message.text == "💰 Стоимость":
         await message.answer(
-            "💰 Сколько стоит бот?\n\n"
-            "— Базовый: от 10 000 ₽\n"
-            "— Для бизнеса: 30 000 – 80 000 ₽\n"
-            "— Под ключ: от 100 000 ₽\n\n"
-            "🔥 Подберу вариант под твой бюджет\n"
-            "👇 Оставь заявку и скажу точную цену"
+            "💰 Прайс:\n\n"
+            "— Простой бот: от 10 000 ₽\n"
+            "— Средний: 30 000 – 80 000 ₽\n"
+            "— Сложный: от 100 000 ₽\n\n"
+            "💬 Напиши задачу — скажу точнее"
         )
 
     elif message.text == "📩 Связаться":
         await message.answer(
-            "📩 Связаться со мной:\n\n"
-            "📱 Max Messenger: +79250345264\n"
+            "📩 Связь:\n\n"
+            "📱 Max: +79250345264\n"
             "💬 Telegram: @saht707\n\n"
-   	    "⚡ Отвечаю быстро\n\n"
-   	    "👇 Или оставь заявку — напишу сам"
+            "⚡ Отвечаю быстро\n\n"
+            "👇 Или оставь заявку"
         )
 
-    # ЗАЯВКА
-    elif message.text == "🔥 Оставить заявку":
+    elif message.text == "📝 Оставить заявку":
         user_data[user_id] = {"step": "name"}
         await message.answer("✍️ Напиши своё имя:")
 
     elif user_id in user_data:
-
         if user_data[user_id]["step"] == "name":
             user_data[user_id]["name"] = message.text
-            user_data[user_id]["step"] = "contact"
-            await message.answer("📱 Оставь свой Telegram или WhatsApp:")
-
-        elif user_data[user_id]["step"] == "contact":
-            user_data[user_id]["contact"] = message.text
-            user_data[user_id]["step"] = "request"
+            user_data[user_id]["step"] = "task"
             await message.answer("📋 Опиши задачу:")
 
-        elif user_data[user_id]["step"] == "request":
+        elif user_data[user_id]["step"] == "task":
             name = user_data[user_id]["name"]
-            contact = user_data[user_id]["contact"]
-            request = message.text
+            task = message.text
 
-            text = (
+            await bot.send_message(
+                ADMIN_ID,
                 f"🔥 Новая заявка!\n\n"
                 f"👤 Имя: {name}\n"
-                f"📱 Контакт: {contact}\n"
                 f"🆔 ID: {user_id}\n"
-                f"📩 Запрос: {request}"
+                f"📩 Задача: {task}"
             )
 
-            await bot.send_message(ADMIN_ID, text)
-
-            await message.answer(
-                "✅ Готово!\n\n"
-                "Я получил заявку и скоро напишу тебе 👌"
-            )
+            await message.answer("✅ Заявка отправлена! Я скоро напишу тебе")
 
             del user_data[user_id]
 
-# Запуск
-async def main():
-    await dp.start_polling(bot)
+# ================= WEBHOOK =================
+WEBHOOK_PATH = "/webhook"
+WEBHOOK_URL = os.getenv("RENDER_EXTERNAL_URL") + WEBHOOK_PATH
+
+async def on_startup(bot):
+    await bot.set_webhook(WEBHOOK_URL)
+
+async def on_shutdown(bot):
+    await bot.delete_webhook()
+
+def main():
+    app = web.Application()
+
+    dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
+
+    handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+    handler.register(app, path=WEBHOOK_PATH)
+
+    setup_application(app, dp, bot=bot)
+
+    web.run_app(app, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
