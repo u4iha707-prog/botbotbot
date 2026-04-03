@@ -96,3 +96,20 @@ async def menu(message: types.Message):
 # ===== ЗАПУСК =====
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+def run_server():
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"Bot is running")
+
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    server.serve_forever()
+
+if __name__ == "__main__":
+    threading.Thread(target=run_server).start()
+    executor.start_polling(dp, skip_updates=True)
